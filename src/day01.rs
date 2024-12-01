@@ -35,9 +35,16 @@ impl Solution for Day01 {
             .to_string()
     }
 
-    fn part_two(_parsed_input: &mut Self::ParsedInput) -> String {
-        // TODO: implement part two
-        0.to_string()
+    fn part_two(parsed_input: &mut Self::ParsedInput) -> String {
+        parsed_input[0]
+            .iter()
+            .fold(0, |sum, list1_item| {
+                sum + parsed_input[1]
+                    .iter()
+                    .filter(|list2_item| *list2_item == list1_item)
+                    .sum::<u32>()
+            })
+            .to_string()
     }
 }
 
@@ -62,7 +69,17 @@ mod tests {
 
     #[test]
     fn check_day01_part2_case1() {
-        assert_eq!(Day01::solve_part_two(""), "0".to_string())
+        assert_eq!(
+            Day01::solve_part_two(
+                "3   4
+4   3
+2   5
+1   3
+3   9
+3   3"
+            ),
+            "31".to_string()
+        )
     }
 
     #[test]
