@@ -3,6 +3,18 @@ use crate::Solution;
 #[derive(Clone, Debug)]
 pub struct Day02;
 
+fn is_safe(report: &Vec<i8>) -> bool {
+    let distances = report
+        .iter()
+        .zip(report.iter().skip(1))
+        .map(|(current, next)| next - current);
+    !(distances
+        .clone()
+        .any(|distance| -3 > distance || 3 < distance || distance == 0)
+        || distances.clone().any(|distance| distance < 0)
+            && distances.clone().any(|distance| distance > 0))
+}
+
 impl Solution for Day02 {
     type ParsedInput = Vec<Vec<i8>>;
 
@@ -25,31 +37,28 @@ impl Solution for Day02 {
     fn part_one(parsed_input: &mut Self::ParsedInput) -> String {
         parsed_input
             .iter()
-            .map(|report| {
-                let distances = report
-                    .iter()
-                    .zip(report.iter().skip(1))
-                    .map(|(current, next)| next - current);
-                if distances
-                    .clone()
-                    .any(|distance| -3 > distance || 3 < distance || distance == 0)
-                {
-                    return 0usize;
-                }
-                if distances.clone().any(|distance| distance < 0)
-                    && distances.clone().any(|distance| distance > 0)
-                {
-                    return 0usize;
-                }
-                1usize
-            })
-            .sum::<usize>()
+            .map(is_safe)
+            .filter(|b| *b)
+            .count()
             .to_string()
     }
 
-    fn part_two(_parsed_input: &mut Self::ParsedInput) -> String {
-        // TODO: implement part two
-        0.to_string()
+    fn part_two(parsed_input: &mut Self::ParsedInput) -> String {
+        parsed_input
+            .iter()
+            .map(|report| {
+                let mut possible_removal_lists = vec![];
+                for index in 0..report.len() {
+                    let mut new_vec = report.clone();
+                    new_vec.remove(index);
+                    possible_removal_lists.push(new_vec);
+                }
+                possible_removal_lists
+            })
+            .map(|report_permutations| report_permutations.iter().map(is_safe).any(|b| b))
+            .filter(|b| *b)
+            .count()
+            .to_string()
     }
 }
 
@@ -74,7 +83,17 @@ mod tests {
 
     #[test]
     fn check_day02_part2_case1() {
-        assert_eq!(Day02::solve_part_two(""), "0".to_string())
+        assert_eq!(
+            Day02::solve_part_two(
+                "7 6 4 2 1
+1 2 7 8 9
+9 7 6 2 1
+1 3 2 4 5
+8 6 4 4 1
+1 3 6 7 9"
+            ),
+            "4".to_string()
+        )
     }
 
     #[test]
