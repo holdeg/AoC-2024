@@ -39,6 +39,39 @@ fn search(
     true
 }
 
+fn is_x_mas(
+    wordsearch: &Grid,
+    row_index: usize,
+    column_index: usize,
+    rows: usize,
+    columns: usize,
+) -> bool {
+    // Guarantee all corners are contained within the grid - necessary for a valid X-MAS
+    if row_index as isize - 1 < 0
+        || row_index + 1 >= rows
+        || column_index as isize - 1 < 0
+        || column_index + 1 >= columns
+    {
+        return false;
+    }
+
+    let row_above = &wordsearch[row_index - 1];
+    let row_below = &wordsearch[row_index + 1];
+
+    match (
+        row_above[column_index - 1],
+        row_above[column_index + 1],
+        row_below[column_index - 1],
+        row_below[column_index + 1],
+    ) {
+        ('M', 'M', 'S', 'S')
+        | ('M', 'S', 'M', 'S')
+        | ('S', 'M', 'S', 'M')
+        | ('S', 'S', 'M', 'M') => true,
+        _ => false,
+    }
+}
+
 impl Solution for Day04 {
     type ParsedInput = Grid;
 
@@ -81,9 +114,23 @@ impl Solution for Day04 {
         count.to_string()
     }
 
-    fn part_two(_parsed_input: &mut Self::ParsedInput) -> String {
-        // TODO: implement part two
-        0.to_string()
+    fn part_two(parsed_input: &mut Self::ParsedInput) -> String {
+        // Assume "rectangular" input with at least 1 row
+        let rows = parsed_input.len();
+        let cols = parsed_input[0].len();
+        let mut count = 0;
+        for i in 0..rows {
+            for j in 0..cols {
+                let cursor = parsed_input[i][j];
+                if cursor != 'A' {
+                    continue;
+                }
+                if is_x_mas(parsed_input, i, j, rows, cols) {
+                    count += 1;
+                }
+            }
+        }
+        count.to_string()
     }
 }
 
@@ -112,7 +159,21 @@ MXMXAXMASX"
 
     #[test]
     fn check_day04_part2_case1() {
-        assert_eq!(Day04::solve_part_two(""), "0".to_string())
+        assert_eq!(
+            Day04::solve_part_two(
+                "MMMSXXMASM
+MSAMXMSMSA
+AMXSXMAAMM
+MSAMASMSMX
+XMASAMXAMM
+XXAMMXXAMA
+SMSMSASXSS
+SAXAMASAAA
+MAMMMXMMMM
+MXMXAXMASX"
+            ),
+            "9".to_string()
+        )
     }
 
     #[test]
