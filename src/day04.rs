@@ -16,15 +16,6 @@ fn search(
     let mut i = initial_row;
     let mut j = initial_column;
     for matching_character in needle.chars() {
-        let Some(row) = haystack.get(i) else {
-            return false;
-        };
-        let Some(cursor) = row.get(j) else {
-            return false;
-        };
-        if *cursor != matching_character {
-            return false;
-        }
         if let Ok(new_i) = usize::try_from(i as isize + row_delta) {
             i = new_i;
         } else {
@@ -33,6 +24,15 @@ fn search(
         if let Ok(new_j) = usize::try_from(j as isize + column_delta) {
             j = new_j;
         } else {
+            return false;
+        }
+        let Some(row) = haystack.get(i) else {
+            return false;
+        };
+        let Some(cursor) = row.get(j) else {
+            return false;
+        };
+        if *cursor != matching_character {
             return false;
         }
     }
@@ -71,9 +71,8 @@ impl Solution for Day04 {
                         if delta_i == delta_j && delta_i == 0 {
                             continue;
                         }
-                        if search("XMAS", parsed_input.to_vec(), i, j, delta_i, delta_j) {
+                        if search("MAS", parsed_input.to_vec(), i, j, delta_i, delta_j) {
                             count += 1;
-                            println!("found at {i}, {j}")
                         }
                     }
                 }
