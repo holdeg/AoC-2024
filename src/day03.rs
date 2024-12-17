@@ -8,6 +8,16 @@ pub struct Day03;
 
 static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"mul\((\d{1,3}),(\d{1,3})\)").unwrap());
 
+fn sum_multiplications(input: &str) -> u32 {
+    RE.captures_iter(input)
+        .map(|captures| {
+            captures.iter().skip(1).fold(1u32, |prod, el| {
+                prod * el.unwrap().as_str().parse::<u32>().unwrap()
+            })
+        })
+        .sum()
+}
+
 impl Solution for Day03 {
     type ParsedInput = String;
 
@@ -18,19 +28,24 @@ impl Solution for Day03 {
     }
 
     fn part_one(parsed_input: &mut Self::ParsedInput) -> String {
-        RE.captures_iter(parsed_input)
-            .map(|captures| {
-                captures.iter().skip(1).fold(1u32, |prod, el| {
-                    prod * el.unwrap().as_str().parse::<u32>().unwrap()
-                })
-            })
-            .sum::<u32>()
-            .to_string()
+        sum_multiplications(parsed_input).to_string()
     }
 
-    fn part_two(_parsed_input: &mut Self::ParsedInput) -> String {
-        // TODO: implement part two
-        0.to_string()
+    fn part_two(parsed_input: &mut Self::ParsedInput) -> String {
+        sum_multiplications(
+            &parsed_input
+                .split("do()")
+                .map(|enabled_set| {
+                    enabled_set
+                        .split("don't()")
+                        .next()
+                        .unwrap_or(enabled_set)
+                        .to_string()
+                })
+                .collect::<Vec<String>>()
+                .join(""),
+        )
+        .to_string()
     }
 }
 
@@ -50,7 +65,12 @@ mod tests {
 
     #[test]
     fn check_day03_part2_case1() {
-        assert_eq!(Day03::solve_part_two(""), "0".to_string())
+        assert_eq!(
+            Day03::solve_part_two(
+                "xmul(2,4)&mul[3,7]!^don't()_mul(5,5)+mul(32,64](mul(11,8)undo()?mul(8,5))"
+            ),
+            "48".to_string()
+        )
     }
 
     #[test]
