@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 use crate::Solution;
 
 #[derive(Clone, Debug)]
@@ -14,10 +16,26 @@ struct RuleSet {
     rules: Vec<Rule>,
 }
 
-#[derive(Debug, Default)]
+impl RuleSet {
+    fn rules_involving(&self, pages: &Vec<u32>) -> Vec<Rule> {
+        self.rules
+            .iter()
+            .filter(|rule| pages.contains(&rule.before) && pages.contains(&rule.after))
+            .map(|rule| *rule)
+            .collect()
+    }
+}
+
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 struct Rule {
     before: u32,
     after: u32,
+}
+
+impl From<Rule> for [u32; 2] {
+    fn from(value: Rule) -> Self {
+        [value.before, value.after]
+    }
 }
 
 impl Update {
@@ -29,6 +47,62 @@ impl Update {
 
     fn satisfies(&self, ruleset: &RuleSet) -> bool {
         !ruleset.rules.iter().any(|rule| !self.obeys(rule))
+    }
+
+    fn with_rules(&self, ruleset: &RuleSet) -> Self {
+        if self.satisfies(ruleset) {
+            return self.clone();
+        }
+
+        // self.0.sort_by(compare);
+
+        let rules = ruleset.rules_involving(&self.0);
+
+        // The below makes the assumption that the exact minimum amount of information
+        // is specified for a total ordering, which is false.
+
+        let first = rules
+            .clone()
+            .iter()
+            .find(|rule| {
+                !rules
+                    .iter()
+                    .filter(|compare| compare != rule)
+                    .map(|compare| <[u32; 2]>::from(*compare))
+                    .flatten()
+                    .contains(&rule.before)
+            })
+            .unwrap()
+            .to_owned();
+        let last = rules
+            .clone()
+            .iter()
+            .find(|rule| {
+                !rules
+                    .iter()
+                    .filter(|compare| compare != rule)
+                    .map(|compare| <[u32; 2]>::from(*compare))
+                    .flatten()
+                    .contains(&rule.after)
+            })
+            .unwrap()
+            .to_owned();
+
+        let mut ordered = vec![first.before, first.after];
+        let mut tail = first.after;
+        while tail != last.after {
+            ordered.push(
+                rules
+                    .clone()
+                    .iter()
+                    .find(|rule| rule.before == tail)
+                    .map(|rule| rule.after)
+                    .unwrap(),
+            );
+            tail = ordered.last().unwrap().to_owned();
+        }
+
+        Self(ordered)
     }
 }
 
@@ -49,7 +123,7 @@ impl From<(&str, &str)> for Rule {
 
 // type Update = Vec<u32>;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 struct Update(Vec<u32>);
 
 impl Solution for Day05 {
@@ -94,9 +168,19 @@ impl Solution for Day05 {
             .to_string()
     }
 
-    fn part_two(_parsed_input: &mut Self::ParsedInput) -> String {
-        // TODO: implement part two
-        0.to_string()
+    fn part_two(parsed_input: &mut Self::ParsedInput) -> String {
+        parsed_input
+            .updates
+            .iter()
+            .filter(|update| !update.satisfies(&parsed_input.ruleset))
+            .map(|update| update.with_rules(&parsed_input.ruleset))
+            .filter_map(|update| {
+                // Assume odd length
+                let half = update.0.len() / 2;
+                update.0.iter().skip(half).next().map(|i| *i)
+            })
+            .sum::<u32>()
+            .to_string()
     }
 }
 
@@ -143,7 +227,39 @@ mod tests {
 
     #[test]
     fn check_day05_part2_case1() {
-        assert_eq!(Day05::solve_part_two(""), "0".to_string())
+        assert_eq!(
+            Day05::solve_part_two(
+                "47|53
+97|13
+97|61
+97|47
+75|29
+61|13
+75|53
+29|13
+97|29
+53|29
+61|53
+97|53
+61|29
+47|13
+75|47
+97|75
+47|61
+75|61
+47|29
+75|13
+53|13
+
+75,47,61,53,29
+97,61,53,29,13
+75,29,13
+75,97,47,61,53
+61,13,29
+97,13,75,29,47"
+            ),
+            "123".to_string()
+        )
     }
 
     #[test]
