@@ -1,5 +1,7 @@
 use std::{
     fmt::{Display, Write},
+    ops::Index,
+    slice::{Iter, SliceIndex},
     str::FromStr,
 };
 
@@ -7,6 +9,63 @@ use crate::Solution;
 
 #[derive(Clone, Debug)]
 pub struct Day06;
+
+pub struct Grid<T>(Vec<Vec<T>>);
+
+impl<T: Display> Display for Grid<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for row in &self.0 {
+            for element in row {
+                f.write_str(&element.to_string())?;
+            }
+            f.write_str("\n")?
+        }
+        Ok(())
+    }
+}
+
+impl<T: FromStr> FromStr for Grid<T> {
+    type Err = T::Err;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(
+            s.lines()
+                .map(|row| {
+                    row.chars()
+                        .map(|character| character.to_string().parse())
+                        .collect::<Result<_, _>>()
+                })
+                .collect::<Result<_, _>>()?,
+        ))
+    }
+}
+
+impl<T> Grid<T> {
+    fn get(&self, row_index: usize, col_index: usize) -> Option<&T> {
+        self.0.get(row_index).and_then(|row| row.get(col_index))
+    }
+
+    pub fn iter(&self) -> Iter<'_, Vec<T>> {
+        self.0.iter()
+    }
+}
+
+impl<T, Idx: SliceIndex<[Vec<T>], Output = Vec<T>>> Index<Idx> for Grid<T> {
+    type Output = Vec<T>;
+
+    fn index(&self, index: Idx) -> &Self::Output {
+        self.0.index(index)
+    }
+}
+
+impl<T> IntoIterator for Grid<T> {
+    type Item = Vec<T>;
+    type IntoIter = <Vec<Vec<T>> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
 
 pub enum Direction {
     Up,
@@ -52,36 +111,6 @@ impl FromStr for MapElement {
     }
 }
 
-pub struct Grid<T>(Vec<Vec<T>>);
-
-impl<T: Display> Display for Grid<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for row in &self.0 {
-            for element in row {
-                f.write_str(&element.to_string())?;
-            }
-            f.write_str("\n")?
-        }
-        Ok(())
-    }
-}
-
-impl<T: FromStr> FromStr for Grid<T> {
-    type Err = T::Err;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self(
-            s.lines()
-                .map(|row| {
-                    row.chars()
-                        .map(|character| character.to_string().parse())
-                        .collect::<Result<_, _>>()
-                })
-                .collect::<Result<_, _>>()?,
-        ))
-    }
-}
-
 impl Solution for Day06 {
     type ParsedInput = Grid<MapElement>;
 
@@ -90,7 +119,18 @@ impl Solution for Day06 {
     }
 
     fn part_one(parsed_input: &mut Self::ParsedInput) -> String {
-        println!("{parsed_input}");
+        let thing = parsed_input
+            .iter()
+            .enumerate()
+            .filter_map(|(row_index, row)| {
+                row.iter()
+                    .enumerate()
+                    .find(|(_, element)| matches!(element, MapElement::Guard(..)))
+                    .map(|(col_index, _)| (row_index, col_index))
+            })
+            .next()
+            .expect("couldn't find the guard");
+        println!("{thing:?}");
         0.to_string()
     }
 
@@ -119,7 +159,7 @@ mod tests {
 #.........
 ......#..."
             ),
-            "0".to_string()
+            "41".to_string()
         )
     }
 
