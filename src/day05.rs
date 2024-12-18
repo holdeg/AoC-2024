@@ -54,53 +54,36 @@ impl Update {
             return self.clone();
         }
 
-        // self.0.sort_by(compare);
-
         let rules = ruleset.rules_involving(&self.0);
 
-        // The below makes the assumption that the exact minimum amount of information
-        // is specified for a total ordering, which is false.
+        let mut remaining_rules = rules.clone();
+        let mut ordered = vec![];
 
-        let first = rules
+        let tail = rules
             .clone()
             .iter()
-            .find(|rule| {
-                !rules
-                    .iter()
-                    .filter(|compare| compare != rule)
-                    .map(|compare| <[u32; 2]>::from(*compare))
-                    .flatten()
-                    .contains(&rule.before)
-            })
-            .unwrap()
-            .to_owned();
-        let last = rules
-            .clone()
-            .iter()
-            .find(|rule| {
-                !rules
-                    .iter()
-                    .filter(|compare| compare != rule)
-                    .map(|compare| <[u32; 2]>::from(*compare))
-                    .flatten()
-                    .contains(&rule.after)
-            })
-            .unwrap()
+            .map(|rule| rule.after)
+            .find(|page| !rules.iter().map(|rule| rule.before).contains(&page))
+            .expect("No last page found")
             .to_owned();
 
-        let mut ordered = vec![first.before, first.after];
-        let mut tail = first.after;
-        while tail != last.after {
-            ordered.push(
-                rules
-                    .clone()
-                    .iter()
-                    .find(|rule| rule.before == tail)
-                    .map(|rule| rule.after)
-                    .unwrap(),
-            );
-            tail = ordered.last().unwrap().to_owned();
+        while remaining_rules.len() > 0 {
+            let head = remaining_rules
+                .clone()
+                .iter()
+                .map(|rule| rule.before)
+                .find(|page| {
+                    !remaining_rules
+                        .iter()
+                        .map(|rule| rule.after)
+                        .contains(&page)
+                })
+                .expect("No first page found")
+                .to_owned();
+            ordered.push(head);
+            remaining_rules.retain(|rule| rule.before != head);
         }
+        ordered.push(tail);
 
         Self(ordered)
     }
@@ -120,8 +103,6 @@ impl From<(&str, &str)> for Rule {
         (value.0.parse::<u32>().unwrap(), value.1.parse().unwrap()).into()
     }
 }
-
-// type Update = Vec<u32>;
 
 #[derive(Debug, Default, Clone)]
 struct Update(Vec<u32>);
