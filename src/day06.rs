@@ -41,12 +41,34 @@ impl<T: FromStr> FromStr for Grid<T> {
 }
 
 impl<T> Grid<T> {
-    fn get(&self, row_index: usize, col_index: usize) -> Option<&T> {
+    pub fn get(&self, row_index: usize, col_index: usize) -> Option<&T> {
         self.0.get(row_index).and_then(|row| row.get(col_index))
     }
 
     pub fn iter(&self) -> Iter<'_, Vec<T>> {
         self.0.iter()
+    }
+
+    /// Searches for the first (row-major ordering) element contained in
+    /// the grid that satisfies a predicate, and return it with its location
+    /// if found.
+    ///
+    /// Compare [`Iterator::find`], which does the same thing over a normal
+    /// [Iterator] (without returning index) - this wraps that operation
+    /// with [`Iterator::enumerate`] over two dimensions to return the position.
+    pub fn locate<P>(&self, mut predicate: P) -> Option<(usize, usize, &T)>
+    where
+        P: FnMut(&T) -> bool,
+    {
+        self.iter()
+            .enumerate()
+            .filter_map(|(row_index, row)| {
+                row.iter()
+                    .enumerate()
+                    .find(|(_, element)| predicate(element))
+                    .map(|(col_index, element)| (row_index, col_index, element))
+            })
+            .next()
     }
 }
 
@@ -119,18 +141,10 @@ impl Solution for Day06 {
     }
 
     fn part_one(parsed_input: &mut Self::ParsedInput) -> String {
-        let thing = parsed_input
-            .iter()
-            .enumerate()
-            .filter_map(|(row_index, row)| {
-                row.iter()
-                    .enumerate()
-                    .find(|(_, element)| matches!(element, MapElement::Guard(..)))
-                    .map(|(col_index, _)| (row_index, col_index))
-            })
-            .next()
-            .expect("couldn't find the guard");
-        println!("{thing:?}");
+        let (row, col, guard) = parsed_input
+            .locate(|element| matches!(element, MapElement::Guard(..)))
+            .expect("Could not find the guard");
+        println!("({row}, {col}): {guard}");
         0.to_string()
     }
 
