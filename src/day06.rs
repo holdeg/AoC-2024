@@ -1,4 +1,5 @@
 use std::{
+    collections::HashSet,
     fmt::{Display, Write},
     ops::Index,
     slice::{Iter, SliceIndex},
@@ -45,8 +46,28 @@ impl<T> Grid<T> {
         self.0.get(row_index).and_then(|row| row.get(col_index))
     }
 
+    pub fn get_pos(&self, pos: (usize, usize)) -> Option<&T> {
+        self.get(pos.0, pos.1)
+    }
+
     pub fn iter(&self) -> Iter<'_, Vec<T>> {
         self.0.iter()
+    }
+
+    pub fn dimensions(&self) -> (usize, usize) {
+        // Assume rectangular, but cope with empty data structure
+        (self.0.len(), self.0.get(0).map_or(0, Vec::len))
+    }
+
+    /// Convenience function for row by index.
+    pub fn row(&self, row_index: usize) -> Option<Vec<&T>> {
+        self.0.get(row_index).map(|row| row.iter().collect())
+    }
+
+    /// Constructs the column of this grid specified by the column index
+    /// and returns it.
+    pub fn column(&self, col_index: usize) -> Option<Vec<&T>> {
+        self.iter().map(|row| row.get(col_index)).collect()
     }
 
     /// Searches for the first (row-major ordering) element contained in
@@ -72,6 +93,36 @@ impl<T> Grid<T> {
     }
 }
 
+impl<T> Grid<T> {
+    pub fn walk(
+        &self,
+        row_index: usize,
+        col_index: usize,
+        direction: &Direction,
+    ) -> Option<(usize, usize, &T)> {
+        match direction {
+            Direction::Up => match row_index.overflowing_sub(1) {
+                (_, true) => None,
+                (result, false) => self
+                    .get(result, col_index)
+                    .map(|el| (result, col_index, el)),
+            },
+            Direction::Down => self
+                .get(row_index + 1, col_index)
+                .map(|el| (row_index + 1, col_index, el)),
+            Direction::Left => match col_index.overflowing_sub(1) {
+                (_, true) => None,
+                (result, false) => self
+                    .get(row_index, result)
+                    .map(|el| (row_index, result, el)),
+            },
+            Direction::Right => self
+                .get(row_index, col_index + 1)
+                .map(|el| (row_index, col_index + 1, el)),
+        }
+    }
+}
+
 impl<T, Idx: SliceIndex<[Vec<T>], Output = Vec<T>>> Index<Idx> for Grid<T> {
     type Output = Vec<T>;
 
@@ -89,6 +140,7 @@ impl<T> IntoIterator for Grid<T> {
     }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Direction {
     Up,
     Down,
@@ -96,6 +148,18 @@ pub enum Direction {
     Right,
 }
 
+impl Direction {
+    pub fn turn_right(&self) -> Self {
+        match self {
+            Self::Up => Self::Right,
+            Self::Right => Self::Down,
+            Self::Down => Self::Left,
+            Self::Left => Self::Up,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
 pub enum MapElement {
     Guard(Direction),
     Obstacle,
@@ -140,12 +204,32 @@ impl Solution for Day06 {
         input_lines.parse().expect("Couldn't parse input")
     }
 
-    fn part_one(parsed_input: &mut Self::ParsedInput) -> String {
-        let (row, col, guard) = parsed_input
+    fn part_one(grid: &mut Self::ParsedInput) -> String {
+        let (row, col, guard) = grid
             .locate(|element| matches!(element, MapElement::Guard(..)))
             .expect("Could not find the guard");
-        println!("({row}, {col}): {guard}");
-        0.to_string()
+
+        let mut direction = *match guard {
+            MapElement::Guard(direction) => direction,
+            _ => unreachable!("Guard is not a guard"),
+        };
+        let mut walked_positions: HashSet<(usize, usize)> = HashSet::new();
+        let mut i = row;
+        let mut j = col;
+
+        // The following loop assumes we do terminate - i.e., no positions where the
+        // guard is in some sense "surrounded" by obstacles, and thus will at some point
+        // exit the grid.
+        loop {
+            walked_positions.insert((i, j));
+            match grid.walk(i, j, &direction) {
+                None => break,
+                Some((_, _, MapElement::Obstacle)) => direction = direction.turn_right(),
+                Some((next_i, next_j, _)) => (i, j) = (next_i, next_j),
+            }
+        }
+
+        walked_positions.len().to_string()
     }
 
     fn part_two(_parsed_input: &mut Self::ParsedInput) -> String {
