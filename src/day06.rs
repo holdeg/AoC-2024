@@ -11,6 +11,7 @@ use crate::Solution;
 #[derive(Clone, Debug)]
 pub struct Day06;
 
+#[derive(Clone)]
 pub struct Grid<T>(Vec<Vec<T>>);
 
 impl<T: Display> Display for Grid<T> {
@@ -48,6 +49,18 @@ impl<T> Grid<T> {
 
     pub fn get_pos(&self, pos: (usize, usize)) -> Option<&T> {
         self.get(pos.0, pos.1)
+    }
+
+    pub fn put(&mut self, row_index: usize, col_index: usize, element: T) -> bool {
+        self.0
+            .get_mut(row_index)
+            .and_then(|row| {
+                row.get_mut(col_index).and_then(|old| {
+                    *old = element;
+                    Some(())
+                })
+            })
+            .is_some()
     }
 
     pub fn iter(&self) -> Iter<'_, Vec<T>> {
@@ -140,7 +153,7 @@ impl<T> IntoIterator for Grid<T> {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum Direction {
     Up,
     Down,
@@ -159,7 +172,7 @@ impl Direction {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum MapElement {
     Guard(Direction),
     Obstacle,
@@ -193,6 +206,29 @@ impl FromStr for MapElement {
             "#" => Ok(Self::Obstacle),
             "." => Ok(Self::Empty),
             _ => Err(ParseMapElementError),
+        }
+    }
+}
+
+fn is_looped(
+    grid: &Grid<MapElement>,
+    row_index: usize,
+    col_index: usize,
+    mut direction: Direction,
+) -> bool {
+    let mut walked_positions: HashSet<(usize, usize, Direction)> = HashSet::new();
+    let mut i = row_index;
+    let mut j = col_index;
+
+    loop {
+        if walked_positions.contains(&(i, j, direction)) {
+            return true;
+        }
+        walked_positions.insert((i, j, direction));
+        match grid.walk(i, j, &direction) {
+            None => return false,
+            Some((_, _, MapElement::Obstacle)) => direction = direction.turn_right(),
+            Some((next_i, next_j, _)) => (i, j) = (next_i, next_j),
         }
     }
 }
@@ -232,9 +268,47 @@ impl Solution for Day06 {
         walked_positions.len().to_string()
     }
 
-    fn part_two(_parsed_input: &mut Self::ParsedInput) -> String {
-        // TODO: implement part two
-        0.to_string()
+    fn part_two(grid: &mut Self::ParsedInput) -> String {
+        let (row, col, guard) = grid
+            .locate(|element| matches!(element, MapElement::Guard(..)))
+            .expect("Could not find the guard");
+
+        let initial_direction = match guard {
+            MapElement::Guard(direction) => direction,
+            _ => unreachable!("Guard is not a guard"),
+        };
+
+        let mut direction = *initial_direction;
+
+        let mut potential_obstacles: HashSet<(usize, usize)> = HashSet::new();
+        let mut i = row;
+        let mut j = col;
+
+        // The following loop assumes we do terminate - i.e., no positions where the
+        // guard is in some sense "surrounded" by obstacles, and thus will at some point
+        // exit the grid.
+        loop {
+            match grid.walk(i, j, &direction) {
+                None => break,
+                Some((_, _, MapElement::Obstacle)) => direction = direction.turn_right(),
+                Some((next_i, next_j, _)) => {
+                    let mut grid_with_obstacle = grid.clone();
+                    grid_with_obstacle.put(next_i, next_j, MapElement::Obstacle);
+                    // This sucks. The code naively checks the entire resulting grid
+                    // for a loop to decide if this is a potential obstacle spot,
+                    // which is super expensive. But it's Christmas Day and I can't be
+                    // bothered to think of a better way to do it right now.
+                    //
+                    // So there.
+                    if is_looped(&grid_with_obstacle, row, col, *initial_direction) {
+                        potential_obstacles.insert((next_i, next_j));
+                    }
+                    (i, j) = (next_i, next_j);
+                }
+            }
+        }
+
+        potential_obstacles.len().to_string()
     }
 }
 
@@ -263,7 +337,21 @@ mod tests {
 
     #[test]
     fn check_day06_part2_case1() {
-        assert_eq!(Day06::solve_part_two(""), "0".to_string())
+        assert_eq!(
+            Day06::solve_part_two(
+                "....#.....
+.........#
+..........
+..#.......
+.......#..
+..........
+.#..^.....
+........#.
+#.........
+......#..."
+            ),
+            "6".to_string()
+        )
     }
 
     #[test]
