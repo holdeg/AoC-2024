@@ -17,6 +17,21 @@ impl Operator {
     }
 }
 
+fn words<T>(symbols: &Vec<T>, length: usize) -> Vec<Vec<&T>> {
+    let mut words = vec![vec![]];
+    for _ in 0..length {
+        words = words
+            .into_iter()
+            .flat_map(|word| {
+                symbols
+                    .iter()
+                    .map(move |symbol| [word.clone(), vec![symbol]].concat())
+            })
+            .collect();
+    }
+    words
+}
+
 #[derive(Clone, Debug)]
 pub struct Day07;
 
@@ -45,28 +60,19 @@ impl Solution for Day07 {
         parsed_input
             .iter()
             .filter(|(goal, operands)| {
-                let num_operators = operands.len() - 1;
-                let mut operator_permutations = vec![vec![]];
-                for _ in 0..num_operators {
-                    let mut next_wave = vec![];
-                    while let Some(proto) = operator_permutations.pop() {
-                        for operator in [Operator::Multiply, Operator::Plus] {
-                            let mut new_vector = proto.clone();
-                            new_vector.push(operator);
-                            next_wave.push(new_vector);
-                        }
-                    }
-                    operator_permutations = next_wave;
-                }
-
-                operator_permutations.iter().any(|permutation| {
-                    let operands_iter = operands.iter().map(|el| *el);
-                    let mut operator_iter = permutation.into_iter();
-                    operands_iter
-                        .reduce(|acc, operand| operator_iter.next().unwrap().apply(acc, operand))
-                        .unwrap()
-                        == *goal
-                })
+                let symbols = vec![Operator::Multiply, Operator::Plus];
+                words(&symbols, operands.len() - 1)
+                    .iter()
+                    .any(|permutation| {
+                        let operands_iter = operands.iter().map(|el| *el);
+                        let mut operator_iter = permutation.into_iter();
+                        operands_iter
+                            .reduce(|acc, operand| {
+                                operator_iter.next().unwrap().apply(acc, operand)
+                            })
+                            .unwrap()
+                            == *goal
+                    })
             })
             .map(|(goal, _)| goal)
             .sum::<i64>()
@@ -77,29 +83,19 @@ impl Solution for Day07 {
         parsed_input
             .iter()
             .filter(|(goal, operands)| {
-                let num_operators = operands.len() - 1;
-                let mut operator_permutations = vec![vec![]];
-                for _ in 0..num_operators {
-                    let mut next_wave = vec![];
-                    while let Some(proto) = operator_permutations.pop() {
-                        for operator in [Operator::Multiply, Operator::Plus, Operator::Concatenate]
-                        {
-                            let mut new_vector = proto.clone();
-                            new_vector.push(operator);
-                            next_wave.push(new_vector);
-                        }
-                    }
-                    operator_permutations = next_wave;
-                }
-
-                operator_permutations.iter().any(|permutation| {
-                    let operands_iter = operands.iter().map(|el| *el);
-                    let mut operator_iter = permutation.into_iter();
-                    operands_iter
-                        .reduce(|acc, operand| operator_iter.next().unwrap().apply(acc, operand))
-                        .unwrap()
-                        == *goal
-                })
+                let symbols = vec![Operator::Multiply, Operator::Plus, Operator::Concatenate];
+                words(&symbols, operands.len() - 1)
+                    .iter()
+                    .any(|permutation| {
+                        let operands_iter = operands.iter().map(|el| *el);
+                        let mut operator_iter = permutation.into_iter();
+                        operands_iter
+                            .reduce(|acc, operand| {
+                                operator_iter.next().unwrap().apply(acc, operand)
+                            })
+                            .unwrap()
+                            == *goal
+                    })
             })
             .map(|(goal, _)| goal)
             .sum::<i64>()
