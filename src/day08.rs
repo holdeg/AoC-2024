@@ -58,9 +58,48 @@ impl Solution for Day08 {
             .to_string()
     }
 
-    fn part_two(_parsed_input: &mut Self::ParsedInput) -> String {
-        // TODO: implement part two
-        0.to_string()
+    fn part_two(parsed_input: &mut Self::ParsedInput) -> String {
+        let (grid, unique_chars) = parsed_input;
+        let (rows, cols) = grid.dimensions();
+        unique_chars
+            .iter()
+            .flat_map(|antenna_type| {
+                grid.locate_all(|ch| ch == antenna_type)
+                    .into_iter()
+                    .map(|(row_index, col_index, _)| (row_index, col_index))
+                    .combinations(2)
+                    .flat_map(|combination| {
+                        let a = combination[0];
+                        let b = combination[1];
+                        let ab = (b.0 as isize - a.0 as isize, b.1 as isize - a.1 as isize);
+
+                        let mut valid_nodes = vec![];
+                        let is_valid = |node: (isize, isize)| {
+                            node.0 >= 0
+                                && node.0 < rows as isize
+                                && node.1 >= 0
+                                && node.1 < cols as isize
+                        };
+
+                        let mut antinode = (a.0 as isize, a.1 as isize);
+                        while is_valid(antinode) {
+                            valid_nodes.push(antinode);
+                            antinode = (antinode.0 - ab.0, antinode.1 - ab.1);
+                        }
+
+                        antinode = (b.0 as isize, b.1 as isize);
+                        while is_valid(antinode) {
+                            valid_nodes.push(antinode);
+                            antinode = (antinode.0 + ab.0, antinode.1 + ab.1);
+                        }
+
+                        valid_nodes
+                    })
+                    .collect_vec()
+            })
+            .unique()
+            .count()
+            .to_string()
     }
 }
 
@@ -91,7 +130,23 @@ mod tests {
 
     #[test]
     fn check_day08_part2_case1() {
-        assert_eq!(Day08::solve_part_two(""), "0".to_string())
+        assert_eq!(
+            Day08::solve_part_two(
+                "............
+........0...
+.....0......
+.......0....
+....0.......
+......A.....
+............
+............
+........A...
+.........A..
+............
+............"
+            ),
+            "34".to_string()
+        )
     }
 
     #[test]
