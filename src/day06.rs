@@ -90,6 +90,8 @@ impl<T> Grid<T> {
     /// Compare [`Iterator::find`], which does the same thing over a normal
     /// [Iterator] (without returning index) - this wraps that operation
     /// with [`Iterator::enumerate`] over two dimensions to return the position.
+    /// Compare also [`Iterator::position`], but this does not return the element
+    /// itself (though it could be subsequently obtained).
     pub fn locate<P>(&self, mut predicate: P) -> Option<(usize, usize, &T)>
     where
         P: FnMut(&T) -> bool,
@@ -103,6 +105,28 @@ impl<T> Grid<T> {
                     .map(|(col_index, element)| (row_index, col_index, element))
             })
             .next()
+    }
+
+    /// Return all elements (with their positions) contained in the grid that satisfiy a
+    /// predicate.
+    ///
+    /// Compare [`Iterator::filter`], which does the same thing over a normal
+    /// [Iterator] (without returning index) - this wraps that operation
+    /// with [`Iterator::enumerate`] over two dimensions to return the position.
+    pub fn locate_all<P>(&self, mut predicate: P) -> Vec<(usize, usize, &T)>
+    where
+        P: FnMut(&T) -> bool,
+    {
+        self.iter()
+            .enumerate()
+            .flat_map(|(row_index, row)| {
+                row.iter()
+                    .enumerate()
+                    .filter(|(_, element)| predicate(element))
+                    .map(|(col_index, element)| (row_index, col_index, element))
+                    .collect::<Vec<_>>()
+            })
+            .collect()
     }
 }
 
